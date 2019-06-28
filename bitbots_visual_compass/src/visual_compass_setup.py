@@ -69,12 +69,14 @@ class VisualCompassSetup():
         # Register VisualCompassConfig server for dynamic reconfigure and set callback
         Server(VisualCompassConfig, self.dynamic_reconfigure_callback)
 
-        rospy.logwarn("------------------------------------------------")
-        rospy.logwarn("||                 WARNING                    ||")
-        rospy.logwarn("||Please remove the LAN cable from the Robot, ||")
-        rospy.logwarn("||after pressing 'YES' you have 10 Seconds    ||")
-        rospy.logwarn("||until the head moves OVER the LAN port!!!   ||")
-        rospy.logwarn("------------------------------------------------\n\n")
+        warn_str = \
+        "\n------------------------------------------------" + \
+        "\n||                 WARNING                    ||" + \
+        "\n||Please remove the LAN cable from the Robot. ||" + \
+        "\n||After pressing 'YES' you have 10 Seconds    ||" + \
+        "\n||until the head moves OVER the LAN port!!!   ||" + \
+        "\n------------------------------------------------\n\n"
+        rospy.logwarn(warn_str)
 
         try:
             input = raw_input
