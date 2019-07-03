@@ -69,35 +69,7 @@ class VisualCompassSetup():
         # Register VisualCompassConfig server for dynamic reconfigure and set callback
         Server(VisualCompassConfig, self.dynamic_reconfigure_callback)
 
-        warn_str = \
-        "\n------------------------------------------------" + \
-        "\n||                 WARNING                    ||" + \
-        "\n||Please remove the LAN cable from the Robot. ||" + \
-        "\n||After pressing 'YES' you have 10 Seconds    ||" + \
-        "\n||until the head moves OVER the LAN port!!!   ||" + \
-        "\n------------------------------------------------\n\n"
-        rospy.logwarn(warn_str)
-
-        try:
-            input = raw_input
-        except NameError:
-            pass
-        
-        accept = input("Do you REALLY want to start? (YES/n)")
-
-        if accept == "YES":
-            rospy.logwarn("REMOVE THE LAN CABLE NOW!!!!!")
-
-            rospy.sleep(10)
-
-            head_mode = HeadMode()
-            head_mode.headMode = 10
-            self.pub_head_mode.publish(head_mode)
-            rospy.loginfo("Head mode has been set!")
-
-            rospy.spin()
-        else:
-            rospy.signal_shutdown("You aborted the process! Shuting down correctly.")
+        rospy.spin()
 
     def dynamic_reconfigure_callback(self, config, level):
         # type: (dict, TODO) -> None
@@ -147,8 +119,41 @@ class VisualCompassSetup():
 
         self.check_ground_truth_images_count()
 
+        self.user_interaction()
+
         return self.config
 
+    def user_interaction(self):
+        user_info = \
+            "\nVisual compass is ready to record a ground truth from several positions on the field." + \
+            "\nPlease place the robot on the field looking towards the opponents goal." + \
+            "\nAfter the head has moved and covered the front of the robot," + \
+            "\nplease rotate the robot to record the second half of the robots surrounding." + \
+            "\nThe you will be ask to replace the robot or to finish the setup of the visual compass."
+
+        rospy.loginfo(user_info)
+
+        self.record_loop()
+
+        head_mode = HeadMode()
+        head_mode.headMode = 10
+        self.pub_head_mode.publish(head_mode)
+        rospy.loginfo("Head mode has been set!")
+
+    def record_loop(self)
+        try:
+            input = raw_input
+        except:
+            pass
+
+        confirm = input("Place the robot on the field orienting towards the opponent goal and confirm by pressing ENTER.")
+
+        def self.record_ground_truth()
+
+        confirm = input("Rotate the robot about 180° orienting towards the own goal and confirm by pressing ENTER.")
+
+        def self.record_ground_truth()
+        
     def set_truth_callback(self, request):
         if self.image_msg:
             # TODO: check timestamps
