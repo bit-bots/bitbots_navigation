@@ -50,6 +50,7 @@ class VisualCompassSetup():
 
         self.bridge = CvBridge()
 
+        self.pattern_finished = False
         self.config = {}
         self.image_msg = None
         self.compass = None
@@ -125,13 +126,14 @@ class VisualCompassSetup():
 
         return self.config
 
-    def record_loop(self)
+    def record_loop(self):
+        # TODO at least for first half time
         user_info = \
             "\nVisual compass is ready to record a ground truth from several positions on the field." + \
             "\nPlease place the robot on the field looking towards the opponents goal." + \
             "\nAfter the head has moved and covered the front of the robot," + \
-            "\nplease rotate the robot to record the second half of the robots surrounding." + \
-            "\nThe you will be ask to replace the robot or to finish the setup of the visual compass."
+            "\nplease rotate the robot to record the second half of the field." + \
+            "\nThen you will be ask to replace the robot or to finish the setup of the visual compass."
 
         rospy.loginfo(user_info)
 
@@ -142,7 +144,7 @@ class VisualCompassSetup():
 
         record_confirm = input("Do you want to record (another) ground truth? Please confirm. (yes/no)")
 
-        while record_confirm == "yes":
+        while record_confirm == "yes" or not rospy.is_shutdown():
             self.iteration_count += 1
             self.current_ground_truth_images_count = 0
 
@@ -151,7 +153,7 @@ class VisualCompassSetup():
             self.rotate = False
             self.record_ground_truth()
 
-            confirm = input("Rotate the robot about 180° orienting towards the own goal and confirm by pressing ENTER.")
+            confirm = input("Rotate the robot about 180 degree orienting towards the own goal and confirm by pressing ENTER.")
 
             self.rotate = True
             self.record_ground_truth(rotate=True)
@@ -161,14 +163,20 @@ class VisualCompassSetup():
         if record_confirm == "no":
             rospy.loginfo("All previous recorded ground truths will be saved...")
             self.save_ground_truth(self.config['ground_truth_file_path'])
-        else:
-            # handle else
+            # TODO: handle else
 
-        def record_ground_truth(self):
-            head_mode = HeadMode()
-            head_mode.headMode = 10
-            self.pub_head_mode.publish(head_mode)
-            rospy.loginfo("Head mode has been set!")
+    def record_ground_truth(self):
+        head_mode = HeadMode()
+        head_mode.headMode = 10
+        self.pub_head_mode.publish(head_mode)
+        rospy.loginfo("Head mode has been set!")
+        self.wait_for_flag()
+
+    def wait_for_flag(self):
+        while not self.pattern_finished or not rospy.is_shutdown():
+            rospy.sleep(0.1)
+        self.pattern_finished = False
+
 
     def set_truth_callback(self, request):
         if self.image_msg:
@@ -217,9 +225,6 @@ class VisualCompassSetup():
                             {'var': self.current_ground_truth_images_count, 'config': config_ground_truth_images_count})
             self.processed_set_all_ground_truth_images = False
         else:
-            if not(self.processed_set_all_ground_truth_images):
-                rospy.loginfo('Visual compass: All ground truth images have been processed.')
-                self.save_ground_truth(self.config['ground_truth_file_path'])
             self.processed_set_all_ground_truth_images = True
 
     def save_ground_truth(self, ground_truth_file_path):
