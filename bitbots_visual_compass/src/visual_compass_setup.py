@@ -82,7 +82,9 @@ class VisualCompassSetup():
             self.changed_config_param(config, 'compass_matcher') or \
             self.changed_config_param(config, 'compass_multiple_ground_truth_images_count'):
 
-            self.ground_truth_images_count = 0
+            self.rotate = False
+            self.iteration_count = 0
+            self.current_ground_truth_images_count = 0
             self.processed_set_all_ground_truth_images = False
 
             rospy.loginfo('Loaded configuration: compass type: %(type)s | matcher type: %(matcher)s | ground truth images: %(ground_truth_count)d' % {
@@ -117,13 +119,13 @@ class VisualCompassSetup():
 
         self.config = config
 
-        self.check_ground_truth_images_count()
+        self.check_current_ground_truth_images_count()
 
-        self.user_interaction()
+        self.record_loop()
 
         return self.config
 
-    def user_interaction(self):
+    def record_loop(self)
         user_info = \
             "\nVisual compass is ready to record a ground truth from several positions on the field." + \
             "\nPlease place the robot on the field looking towards the opponents goal." + \
@@ -133,31 +135,44 @@ class VisualCompassSetup():
 
         rospy.loginfo(user_info)
 
-        self.record_loop()
-
-        head_mode = HeadMode()
-        head_mode.headMode = 10
-        self.pub_head_mode.publish(head_mode)
-        rospy.loginfo("Head mode has been set!")
-
-    def record_loop(self)
         try:
             input = raw_input
         except:
             pass
 
-        confirm = input("Place the robot on the field orienting towards the opponent goal and confirm by pressing ENTER.")
+        record_confirm = input("Do you want to record (another) ground truth? Please confirm. (yes/no)")
 
-        def self.record_ground_truth()
+        while record_confirm == "yes":
+            self.iteration_count += 1
+            self.current_ground_truth_images_count = 0
 
-        confirm = input("Rotate the robot about 180° orienting towards the own goal and confirm by pressing ENTER.")
+            confirm = input("Place the robot on the field orienting towards the opponent goal and confirm by pressing ENTER.")
 
-        def self.record_ground_truth()
-        
+            self.rotate = False
+            self.record_ground_truth()
+
+            confirm = input("Rotate the robot about 180° orienting towards the own goal and confirm by pressing ENTER.")
+
+            self.rotate = True
+            self.record_ground_truth(rotate=True)
+
+            record_confirm = input("Do you want to record (another) ground truth? Please confirm. (yes/no)")
+
+        if record_confirm == "no":
+            rospy.loginfo("All previous recorded ground truths will be saved...")
+            self.save_ground_truth(self.config['ground_truth_file_path'])
+        else:
+            # handle else
+
+        def record_ground_truth(self):
+            head_mode = HeadMode()
+            head_mode.headMode = 10
+            self.pub_head_mode.publish(head_mode)
+            rospy.loginfo("Head mode has been set!")
+
     def set_truth_callback(self, request):
         if self.image_msg:
             # TODO: check timestamps
-
             orientation = self.tf_buffer.lookup_transform(self.base_frame, self.camera_frame, self.image_msg.header.stamp, timeout=rospy.Duration(0.5)).transform.rotation
             yaw_angle = (euler_from_quaternion((
                 orientation.x, 
@@ -165,11 +180,14 @@ class VisualCompassSetup():
                 orientation.z, 
                 orientation.w))[2] + 0.5 * math.pi) % (2 * math.pi)
 
+            if self.rotate:
+                yaw_angle = (yaw_angle + math.pi) % (2 * math.pi)
+
             image = self.bridge.imgmsg_to_cv2(self.image_msg, 'bgr8')
 
             self.compass.set_truth(yaw_angle, image)
-            self.ground_truth_images_count += 1
-            self.check_ground_truth_images_count()
+            self.current_ground_truth_images_count += 1
+            self.check_current_ground_truth_images_count()
 
         else:
             rospy.logwarn('No image received yet.')
@@ -188,15 +206,15 @@ class VisualCompassSetup():
 
         self.image_msg = image_msg
 
-    def check_ground_truth_images_count(self):
+    def check_current_ground_truth_images_count(self):
         # type: () -> None
         """
         TODO docs
         """
         config_ground_truth_images_count = self.config['compass_multiple_ground_truth_images_count']
-        if self.ground_truth_images_count != config_ground_truth_images_count:
+        if self.current_ground_truth_images_count != config_ground_truth_images_count:
             rospy.loginfo('Visual compass: %(var)d of %(config)d ground truth images set. More images are needed.' %
-                            {'var': self.ground_truth_images_count, 'config': config_ground_truth_images_count})
+                            {'var': self.current_ground_truth_images_count, 'config': config_ground_truth_images_count})
             self.processed_set_all_ground_truth_images = False
         else:
             if not(self.processed_set_all_ground_truth_images):
@@ -227,6 +245,7 @@ class VisualCompassSetup():
             'compass_type': self.config['compass_type'],
             'compass_matcher': self.config['compass_matcher'],
             'compass_multiple_ground_truth_images_count': self.config['compass_multiple_ground_truth_images_count'],
+            'iteration_count': self.iteration_count,
             'keypoint_count': len(keypoint_values),
             'descriptor_count': len(descriptors)}
 
