@@ -1,9 +1,19 @@
 recorder:
-  motor_control: True
   reset_time: 1
   step_time: 0.5
-  input: 0
   rows: 10
   checkpoints: 7
   yaw_steps: 16
+
   output_path: "../evaluation_data/"
+
+  motor_control: True
+  animation: "standing"
+  play_animation: True
+  joint_resolution: 4095
+
+  basler: True
+  basler_topic: "image_raw"
+
+  logitech: True
+  logitech_source: 0
