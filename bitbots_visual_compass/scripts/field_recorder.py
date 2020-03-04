@@ -4,16 +4,18 @@ import cv2
 import math
 import yaml
 import os
+import sys
 import time
 import rospy
 import actionlib
 
-from .videocv import Videocv
+from copy import deepcopy
+from videocv import Videocv
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from actionlib_msgs.msg import GoalStatus
-from bitbots_msgs.msgs import JointCommand
-from humanoid_league_msgs import PlayAnimationAction, PlayAnimationGoal
+from bitbots_msgs.msg import JointCommand
+from humanoid_league_msgs.msg import PlayAnimationAction, PlayAnimationGoal
 
 class FieldRecorder():
     """
@@ -26,6 +28,7 @@ class FieldRecorder():
 
         self.cv_bridge = CvBridge()
 
+        self.run_record = False
         self.transfer_image_msg_read_flag = False
         self.transfer_image_msg = None
         self.basler_subscriber = None
@@ -45,7 +48,7 @@ class FieldRecorder():
         self.rows = self.config['recorder']['rows']
         self.checkpoints = self.config['recorder']['checkpoints']
         self.yaw_steps = self.config['recorder']['yaw_steps']
-        slef.joint_resolution = self.config['recorder']['joint_resolution']
+        self.joint_resolution = self.config['recorder']['joint_resolution']
         self.data_location = os.path.join(self.dirname, self.config['recorder']['output_path'])
         self.output_path = os.path.join(self.data_location, "record_{}/".format(str(int(time.time()))))
         self.file_index = []
@@ -62,7 +65,7 @@ class FieldRecorder():
         # Open logitech camera
         if self.config['recorder']['logitech']:
             logitech_source = self.config['recorder']['logitech_source']
-            if isinstance(logitech_source, basestring):
+            if isinstance(logitech_source, str):
                 root_folder = os.curdir
                 logitech_source = root_folder + logitech_source
             
@@ -74,7 +77,7 @@ class FieldRecorder():
             animation_succeded = self.play_animation(self.config['recorder']['animation'])
             if not animation_succeded:
                 rospy.logerr("Animation can not be played...")
-                os.exit(1)
+            animation_succeded = self.play_animation(self.config['recorder']['animation'])
 
             # Publisher for JointComand
             self.head_motor_goals_publisher = rospy.Publisher('/head_motor_goals', JointCommand, queue_size=1)
@@ -89,15 +92,32 @@ class FieldRecorder():
             self.start_row = int(split_input[0])
             self.start_checkpoint = int(split_input[1])
 
-        self.display_map(self.start_row self.start_checkpoint)
+        self.display_map(self.start_row, self.start_checkpoint)
 
-        rospy.spin()
+        self._transfer_image_msg = None
+        self._transfer_image_msg_read_flag = False
+        self.main_loop()
+
+
+    def main_loop(self):
+        while not rospy.is_shutdown():
+            if self._transfer_image_msg is not None:
+                # Copy image from shared memory
+                image_msg = deepcopy(self._transfer_image_msg)
+                self._transfer_image_msg = None
+                # Run the vision pipeline
+                self.basler_handle_image(image_msg)
+                # Now the first image has been processed
+                self._first_image_callback = False
+            else:
+                time.sleep(0.01)
+
 
     def basler_callback(self, image_msg):
         image_age = rospy.get_rostime() - image_msg.header.stamp
         if 1.0 < image_age.to_sec() < 1000.0:
             rospy.logerr("Image message to old")
-            os.exit(1)
+        image_age = rospy.get_rostime() - image_msg.header.stamp
 
         # Check flag
         if self.transfer_image_msg_read_flag:
@@ -108,13 +128,16 @@ class FieldRecorder():
 
     def basler_handle_image(self):
         self.transfer_image_msg_read_flag = True
+        print("RECV")
         self.basler_image = self.cv_bridge.imgmsg_to_cv2(image_msg, 'bgr8')
         self.transfer_image_msg_read_flag = False
 
         # Skip if image is None
         if self.basler_image is None:
             rospy.logerr("Basler image content is None")
-            os.exit(1)
+        # Skip if image is None
+
+        self.record()
 
     def play_animation(self, animation):
         animation_client = actionlib.SimpleActionClient('animation', PlayAnimationAction)
@@ -128,7 +151,7 @@ class FieldRecorder():
         goal = PlayAnimationGoal()
         goal.animation = animation
         goal.hcm = False
-        state = anim_client.send_goal_and_wait(goal)
+        state = animation_client.send_goal_and_wait(goal)
         if state == GoalStatus.PENDING:
             print('Pending')
         elif state == GoalStatus.ACTIVE:
@@ -181,7 +204,7 @@ class FieldRecorder():
             os.makedirs(path)
         except OSError:  
             rospy.logerr(f"Creation of directory '{path}' failed!")
-            os.exit(1)
+            os.makedirs(path)
         else:  
             rospy.loginfo(f"Successfully created directory '{path}'.")
 
@@ -203,7 +226,7 @@ class FieldRecorder():
                 yaml.dump(self.file_index, outfile, default_flow_style=False)
         except:
             rospy.logerr("Save index file error")
-            os.exit(1)
+            sys.exit(1)
 
     def save(self, row, checkpoint, value, angle, path, basler_image, logitech_image):
         basler_image_name = "basler_image_{}.png".format(value)
@@ -261,6 +284,9 @@ class FieldRecorder():
             self.save(row, checkpoint, value, angle, path, self.basler_image, logitech_image)
 
     def record(self):
+        if self.run_record:
+            return
+        self.run_record = True
         skipall = False
         for row in range(start_row, self.rows):
             if not skipall:

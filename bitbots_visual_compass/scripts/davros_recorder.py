@@ -40,7 +40,7 @@ class DavrosRecorder():
 
         self.output_path = os.path.join(self.data_location, "record_{}/".format(str(int(time.time()))))
 
-        if isinstance(source, basestring):
+        if isinstance(source, str):
             root_folder = os.curdir
             source = root_folder + source
         

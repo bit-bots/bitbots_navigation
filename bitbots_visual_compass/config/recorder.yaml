@@ -8,7 +8,7 @@ recorder:
   output_path: "../evaluation_data/"
 
   motor_control: True
-  animation: "standing"
+  animation: "verbeugen"
   play_animation: True
   joint_resolution: 4095
 
