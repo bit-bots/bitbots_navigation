@@ -29,8 +29,6 @@ class FieldRecorder():
         self.cv_bridge = CvBridge()
 
         self.run_record = False
-        self.transfer_image_msg_read_flag = False
-        self.transfer_image_msg = None
         self.basler_subscriber = None
         self.basler_image = None
         self.head_motor_goals_publisher = None
@@ -53,35 +51,6 @@ class FieldRecorder():
         self.output_path = os.path.join(self.data_location, "record_{}/".format(str(int(time.time()))))
         self.file_index = []
 
-        # Subscribe to basler camera
-        if self.config['recorder']['basler']:
-            self.basler_subscriber = rospy.Subscriber(
-                self.config['recorder']['basler_topic'],
-                Image,
-                self.basler_callback,
-                queue_size=1,
-                buff_size=60000000)
-
-        # Open logitech camera
-        if self.config['recorder']['logitech']:
-            logitech_source = self.config['recorder']['logitech_source']
-            if isinstance(logitech_source, str):
-                root_folder = os.curdir
-                logitech_source = root_folder + logitech_source
-            
-            self.logitech_video_getter = Videocv(logitech_source)
-            self.logitech_video_getter.run()
-
-        if self.config['recorder']['motor_control']:
-            # Play standing animation
-            animation_succeded = self.play_animation(self.config['recorder']['animation'])
-            if not animation_succeded:
-                rospy.logerr("Animation can not be played...")
-            animation_succeded = self.play_animation(self.config['recorder']['animation'])
-
-            # Publisher for JointComand
-            self.head_motor_goals_publisher = rospy.Publisher('/head_motor_goals', JointCommand, queue_size=1)
-
         # Get start row and checkpoint from user input
         input_str = input("Select start (row, checkpoint) and/or press enter.")
         if input_str == "":
@@ -94,41 +63,40 @@ class FieldRecorder():
 
         self.display_map(self.start_row, self.start_checkpoint)
 
-        self._transfer_image_msg = None
-        self._transfer_image_msg_read_flag = False
-        self.main_loop()
+        # Open logitech camera
+        if self.config['recorder']['logitech']:
+            logitech_source = self.config['recorder']['logitech_source']
+            if isinstance(logitech_source, str):
+                root_folder = os.curdir
+                logitech_source = root_folder + logitech_source
+            
+            self.logitech_video_getter = Videocv(logitech_source)
+            self.logitech_video_getter.run()
 
+        # Subscribe to basler camera
+        if self.config['recorder']['basler']:
+            self.basler_subscriber = rospy.Subscriber(
+                self.config['recorder']['basler_topic'],
+                Image,
+                self.basler_callback,
+                queue_size=1,
+                buff_size=60000000)
 
-    def main_loop(self):
-        while not rospy.is_shutdown():
-            if self._transfer_image_msg is not None:
-                # Copy image from shared memory
-                image_msg = deepcopy(self._transfer_image_msg)
-                self._transfer_image_msg = None
-                # Run the vision pipeline
-                self.basler_handle_image(image_msg)
-                # Now the first image has been processed
-                self._first_image_callback = False
-            else:
-                time.sleep(0.01)
+        if self.config['recorder']['motor_control']:
+            # Publisher for JointComand
+            self.head_motor_goals_publisher = rospy.Publisher('/head_motor_goals', JointCommand, queue_size=1)
 
+        rospy.spin()
 
     def basler_callback(self, image_msg):
         image_age = rospy.get_rostime() - image_msg.header.stamp
         if 1.0 < image_age.to_sec() < 1000.0:
             rospy.logerr("Image message to old")
-        image_age = rospy.get_rostime() - image_msg.header.stamp
 
-        # Check flag
-        if self.transfer_image_msg_read_flag:
-            return
+        image_msg = deepcopy(image_msg)
+        self.basler_handle_image(image_msg)
 
-        # Transfer the image to the main thread
-        self.transfer_image_msg = image_msg
-
-    def basler_handle_image(self):
-        self.transfer_image_msg_read_flag = True
-        print("RECV")
+    def basler_handle_image(self, image_msg):
         self.basler_image = self.cv_bridge.imgmsg_to_cv2(image_msg, 'bgr8')
         self.transfer_image_msg_read_flag = False
 
@@ -181,12 +149,12 @@ class FieldRecorder():
             False
 
     def publish_head_motor_goals(self, motor, value):
+        pos_msg = JointCommand()
         if motor == 0:
             pos_msg.joint_names = ["HeadPan"]
         if motor == 1:
             pos_msg.joint_names = ["HeadTilt"]
 
-        pos_msg = JointCommand()
         pos_msg.velocities = [2]
         pos_msg.accelerations = [-1]
         pos_msg.max_currents = [-1]
@@ -207,10 +175,6 @@ class FieldRecorder():
             os.makedirs(path)
         else:  
             rospy.loginfo(f"Successfully created directory '{path}'.")
-
-    def deg_to_val(self, angle):
-        resolution = self.joint_resolution
-        return resolution - int((angle/(2*math.pi))*resolution)
 
     def drive(self, motor, value):
         if self.config['recorder']['motor_control']:
@@ -270,15 +234,15 @@ class FieldRecorder():
         delta = (2*math.pi)/steps
         for step in range(steps):
             angle = step*delta
-            value = self.deg_to_val(angle)
+            value = angle - math.pi
             self.drive(0,value)
             # Sleep until motor is positioned
             if step == 0:
                 time.sleep(self.config['recorder']['reset_time'])
             time.sleep(self.config['recorder']['step_time'])
             
-            logitech_image = self.video_getter.frame
-            self.show_img(self.basler, logitech_image)
+            logitech_image = self.logitech_video_getter.frame
+            self.show_img(self.basler_image, logitech_image)
 
             k = cv2.waitKey(1)  # TODO: Why is this here?
             self.save(row, checkpoint, value, angle, path, self.basler_image, logitech_image)
@@ -288,14 +252,14 @@ class FieldRecorder():
             return
         self.run_record = True
         skipall = False
-        for row in range(start_row, self.rows):
+        for row in range(self.start_row, self.rows):
             if not skipall:
                 print("------------- NEW ROW -------------")
-            for checkpoint in range(start_checkpoint, self.checkpoints):
-                if self.video_getter.ended or skipall:
+            for checkpoint in range(self.start_checkpoint, self.checkpoints):
+                if self.logitech_video_getter.ended or skipall:
                     break
                 checkpoints_path = os.path.join(self.output_path, "{}/{}/".format(row, checkpoint))
-                input_str = raw_input("Press enter for next checkpoint!")
+                input_str = input("Press enter for next checkpoint!")
                 print("Current Position:\nRow: {}\nCheckpoint:{}".format(row, checkpoint))
                 if input_str == "s":
                     print("Skiped ({}|{})".format(row, checkpoint))
