@@ -1,14 +1,15 @@
 recorder:
-  reset_time: 1
-  step_time: 0.5
+  reset_time: 1.5
+  step_time: 0.8
   rows: 10
   checkpoints: 7
   yaw_steps: 16
 
   output_path: "../evaluation_data/"
+  show_images: False
 
   motor_control: True
-  animation: "verbeugen"
+  animation: "walkready"
   play_animation: True
   joint_resolution: 4095
 
