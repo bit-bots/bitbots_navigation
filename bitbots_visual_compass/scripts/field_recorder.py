@@ -117,7 +117,7 @@ class FieldRecorder():
                         self.display_map(row, checkpoint)
                     start_checkpoint = 0
                 self.save_index()
-                self.video_getter.stop()
+                self.logitech_video_getter.stop()
                 cv2.destroyAllWindows()
             else:
                 time.sleep(0.01)
