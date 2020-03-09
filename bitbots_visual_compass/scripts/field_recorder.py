@@ -15,6 +15,7 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from actionlib_msgs.msg import GoalStatus
 from bitbots_msgs.msg import JointCommand
+from bitbots_buttons.msg import Buttons
 from humanoid_league_msgs.msg import PlayAnimationAction, PlayAnimationGoal
 
 class FieldRecorder():
@@ -68,7 +69,7 @@ class FieldRecorder():
             if isinstance(logitech_source, str):
                 root_folder = os.curdir
                 logitech_source = root_folder + logitech_source
-            
+
             self.logitech_video_getter = Videocv(logitech_source)
             self.logitech_video_getter.run()
 
@@ -80,6 +81,11 @@ class FieldRecorder():
                 self.basler_callback,
                 queue_size=1,
                 buff_size=60000000)
+
+
+        if self.config['recorder']['use_buttons']:
+            rospy.Subscriber("/buttons", Buttons, self.button_callback)
+            self.button = False
 
         if self.config['recorder']['motor_control']:
             # Publisher for JointComand
@@ -104,7 +110,14 @@ class FieldRecorder():
                         if self.logitech_video_getter.ended or skipall:
                             break
                         checkpoints_path = os.path.join(self.output_path, "{}/{}/".format(row, checkpoint))
-                        input_str = input("Press enter for next checkpoint!")
+                        if self.config['recorder']['use_buttons']:
+                            input_str = "not pressed"
+                            while input_str == "not pressed":
+                                if self.button:
+                                    input_str = "\n"
+                                time.sleep(0.1)
+                        else:
+                            input_str = input("Press enter for next checkpoint!")
                         print("Current Position:\nRow: {}\nCheckpoint:{}".format(row, checkpoint))
                         if input_str == "s":
                             print("Skiped ({}|{})".format(row, checkpoint))
@@ -135,53 +148,16 @@ class FieldRecorder():
         # Transfer the image to the main thread
         self._transfer_image_msg = image_msg
 
+    def button_callback(self, msg):
+        """Callback for msg about pressed buttons."""
+        self.button = msg.button1
+
     def basler_handle_image(self, image_msg):
         self.basler_image = self.cv_bridge.imgmsg_to_cv2(image_msg, 'bgr8')
 
         # Skip if image is None
         if self.basler_image is None:
             rospy.logerr("Basler image content is None")
-
-    def play_animation(self, animation):
-        animation_client = actionlib.SimpleActionClient('animation', PlayAnimationAction)
-        first_try = animation_client.wait_for_server(
-            rospy.Duration(rospy.get_param("hcm/anim_server_wait_time", 10)))
-        if not first_try:
-            rospy.logerr("Animation Action Server not running! Motion can not work without animation action server. "
-                "Will now wait until server is accessible!")
-            animation_client.wait_for_server()
-            rospy.logwarn("Animation server now running, hcm will go on.")
-        goal = PlayAnimationGoal()
-        goal.animation = animation
-        goal.hcm = False
-        state = animation_client.send_goal_and_wait(goal)
-        if state == GoalStatus.PENDING:
-            print('Pending')
-        elif state == GoalStatus.ACTIVE:
-            print('Active')
-        elif state == GoalStatus.PREEMPTED:
-            print('Preempted')
-        elif state == GoalStatus.SUCCEEDED:
-            print('Succeeded')
-        elif state == GoalStatus.ABORTED:
-            print('Aborted')
-        elif state == GoalStatus.REJECTED:
-            print('Rejected')
-        elif state == GoalStatus.PREEMPTING:
-            print('Preempting')
-        elif state == GoalStatus.RECALLING:
-            print('Recalling')
-        elif state == GoalStatus.RECALLED:
-            print('Recalled')
-        elif state == GoalStatus.LOST:
-            print('Lost')
-        else:
-            print('Unknown state', state)
-
-        if state == GoalStatus.SUCCEEDED:
-            return True
-        else:
-            False
 
     def publish_head_motor_goals(self, motor, value):
         pos_msg = JointCommand()
@@ -204,12 +180,12 @@ class FieldRecorder():
             cv2.imshow("Logitech", logitech_image)
 
     def make_path(self, path):
-        try:  
+        try:
             os.makedirs(path)
-        except OSError:  
+        except OSError:
             rospy.logerr(f"Creation of directory '{path}' failed!")
             os.makedirs(path)
-        else:  
+        else:
             rospy.loginfo(f"Successfully created directory '{path}'.")
 
     def drive(self, motor, value):
@@ -276,7 +252,7 @@ class FieldRecorder():
             if step == 0:
                 time.sleep(self.config['recorder']['reset_time'])
             time.sleep(self.config['recorder']['step_time'])
-            
+
             logitech_image = self.logitech_video_getter.frame
             self.show_img(self.basler_image, logitech_image)
 

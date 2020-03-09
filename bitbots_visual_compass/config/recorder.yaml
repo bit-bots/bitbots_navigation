@@ -16,5 +16,7 @@ recorder:
   basler: True
   basler_topic: "image_raw"
 
+  use_buttons: True
+
   logitech: True
   logitech_source: 0
