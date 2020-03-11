@@ -27,9 +27,9 @@ feature_map_field: 'unknown'
 # Choose from 'binary' or 'multiple'
 compass_type: 'multiple'
 
-# Matcher algorithm
+# FeatureDetector algorithm
 # Choose from: 'akaze', 'orb', 'sift'
-compass_matcher: 'sift'
+compass_feature_detector: 'sift'
 
 
 # Compass type binary
@@ -38,8 +38,8 @@ compass_matcher: 'sift'
 # Count of images to compute the map
 compass_multiple_map_image_count: 23
 
-# Big compass_multiple_mean_feature_count -> small confidence for few found features
-compass_multiple_mean_feature_count: 10
+# Big compass_multiple_mean_feature_seed -> small confidence for few found features
+compass_multiple_mean_feature_seed: 10
 
 # akaze
 # TODO

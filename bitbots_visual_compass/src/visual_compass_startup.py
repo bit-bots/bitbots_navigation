@@ -78,12 +78,12 @@ class VisualCompassStartup():
             self.is_feature_map_set = False
 
         if self.changed_config_param(config, 'compass_type') or \
-            self.changed_config_param(config, 'compass_matcher') or \
+            self.changed_config_param(config, 'compass_feature_detector') or \
             self.changed_config_param(config, 'compass_multiple_map_image_count'):
 
-            rospy.loginfo('Loaded configuration: compass type: %(type)s | matcher type: %(matcher)s | map images: %(feature_map_count)d' % {
+            rospy.loginfo('Loaded configuration: compass type: %(type)s | feature_detector type: %(feature_detector)s | map images: %(feature_map_count)d' % {
                     'type': config['compass_type'],
-                    'matcher': config['compass_matcher'],
+                    'feature_detector': config['compass_feature_detector'],
                     'feature_map_count': config['compass_multiple_map_image_count']})
 
         # Subscribe to game state
@@ -216,9 +216,9 @@ class VisualCompassStartup():
         elif meta['compass_type'] != self.config['compass_type']:
             rospy.logwarn('Config parameter "compass_type" does not match type in map:\n' + \
                 'config: %(config)s | map: %(map)a' % {'config': self.config['compass_type'], 'map': meta['compass_type']})
-        elif meta['compass_matcher'] != self.config['compass_matcher']:
+        elif meta['compass_feature_detector'] != self.config['compass_feature_detector']:
             rospy.logwarn('Config parameter "compass_compass" does not match parameter in map:\n' + \
-                'config: %(config)s | map: %(map)a' % {'config': self.config['compass_matcher'], 'map': meta['compass_matcher']})
+                'config: %(config)s | map: %(map)a' % {'config': self.config['compass_feature_detector'], 'map': meta['compass_feature_detector']})
         elif meta['compass_multiple_map_image_count'] != self.config['compass_multiple_map_image_count']:
             rospy.logwarn('Config parameter "compass_multiple_map_image_count" does not match parameter in map:\n' + \
                 'config: %(config)s | map: %(gt)a' % {'config': self.config['compass_multiple_map_image_count'], 'gt': meta['compass_multiple_map_image_count']})

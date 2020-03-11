@@ -105,15 +105,15 @@ class VisualCompassSetup():
         self.compass = VisualCompass(config)
 
         if self.changed_config_param(config, 'compass_type') or \
-            self.changed_config_param(config, 'compass_matcher') or \
+            self.changed_config_param(config, 'compass_feature_detector') or \
             self.changed_config_param(config, 'compass_multiple_map_image_count'):
 
             self.feature_map_images_count = 0
             self.processed_set_all_feature_map_images = False
 
-            rospy.loginfo('Loaded configuration: compass type: %(type)s | matcher type: %(matcher)s | map images: %(feature_map_count)d' % {
+            rospy.loginfo('Loaded configuration: compass type: %(type)s | feature_detector type: %(feature_detector)s | map images: %(feature_map_count)d' % {
                     'type': config['compass_type'],
-                    'matcher': config['compass_matcher'],
+                    'feature_detector': config['compass_feature_detector'],
                     'feature_map_count': config['compass_multiple_map_image_count']})
 
         # Subscribe to Image-message
@@ -220,7 +220,7 @@ class VisualCompassSetup():
             'date': datetime.now(),
             'device': self.hostname,
             'compass_type': self.config['compass_type'],
-            'compass_matcher': self.config['compass_matcher'],
+            'compass_feature_detector': self.config['compass_feature_detector'],
             'compass_multiple_map_image_count': self.config['compass_multiple_map_image_count'],
             'keypoint_count': len(keypoint_values),
             'descriptor_count': len(descriptors),
