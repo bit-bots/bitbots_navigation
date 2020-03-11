@@ -1,18 +1,18 @@
 #! /usr/bin/env python3
-from os import path
 import socket
 import rospy
 import rospkg
 import math
 import cv2
 import pickle
+import tf2_ros as tf2
+from os import path
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from std_msgs.msg import Header
 from dynamic_reconfigure.server import Server
 from bitbots_visual_compass.cfg import VisualCompassConfig
-from worker import VisualCompass
-import tf2_ros as tf2
+from compass import VisualCompass
 from tf2_geometry_msgs import PoseStamped
 from humanoid_league_msgs.msg import HeadMode
 from tf.transformations import euler_from_quaternion

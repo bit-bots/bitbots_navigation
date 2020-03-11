@@ -2,7 +2,6 @@
 from os import path
 import rospy
 import rospkg
-import actionlib
 import math
 from cv2 import KeyPoint
 import cPickle as pickle
@@ -11,9 +10,7 @@ from sensor_msgs.msg import Image
 from dynamic_reconfigure.server import Server
 from humanoid_league_msgs.msg import VisualCompassRotation, GameState
 from bitbots_visual_compass.cfg import VisualCompassConfig
-from worker import VisualCompass
-from key_point_converter import KeyPointConverter
-from visual_compass_filter import VisualCompassFilter
+from compass import VisualCompass
 
 
 class VisualCompassStartup():
@@ -47,8 +44,6 @@ class VisualCompassStartup():
         self.compass = None
         self.orientation_offset = 0  # Orientation changes about PI in the second game half
 
-        self.filter = None
-
         self.lastTimestamp = rospy.Time.now()
 
         # Register publisher of 'visual_compass'-messages
@@ -71,8 +66,6 @@ class VisualCompassStartup():
         feature_map, meta_data = self.load_feature_map(config['feature_map_file_path'])
         self.compass.set_feature_map(feature_map)
         self.compass.set_mean_feature_count(meta_data['mean_feature_count'])
-
-        self.filter = VisualCompassFilter()
 
         if self.changed_config_param(config, 'feature_map_file_path'):
             self.is_feature_map_set = False
@@ -118,11 +111,6 @@ class VisualCompassStartup():
         Callback that receives the current image and runs the calculation.
         """
         # Drops old images
-        # TODO: fix
-        # image_age = rospy.get_rostime() - image_msg.header.stamp
-        # if image_age.to_sec() > 0.1:
-        #     print("Visual Compass: Dropped Image-message")  # TODO debug printer
-        #     return
         now = rospy.Time.now()
         if rospy.Duration(1) < now - self.lastTimestamp:
             self.handle_image(image_msg)
@@ -131,19 +119,15 @@ class VisualCompassStartup():
     def handle_image(self, image_msg):
         # type: (Image) -> None
         """
-        Runs the visual compass worker and filter.
+        Runs the visual compass worker.
         """
-
         image = self.bridge.imgmsg_to_cv2(image_msg, 'bgr8')
 
         # Set image
         compass_result_angle, compass_result_confidence = self.compass.process_image(image)
 
-        # Filter results
-        result = self.filter.filterMeasurement(compass_result_angle, compass_result_confidence, image_msg.header.stamp)
-
         # Publishes the 'visual_compass'-message
-        self.publish_rotation("base_footprint", image_msg.header.stamp, result[0], result[1])
+        self.publish_rotation("camera_optical_frame", image_msg.header.stamp, compass_result_angle, compass_result_confidence)
 
     def gamestate_callback(self, msg):
         """
@@ -171,22 +155,20 @@ class VisualCompassStartup():
         # Publish VisualCompassMsg-message
         self.pub_compass.publish(msg)
 
-
-
     def load_feature_map(self, feature_map_file_path):
         # type: (str) -> ([], [])
         """
         Loads the map describing the surrounding field background
         """
         # generate file path
-        file_path = self.package_path + feature_map_file_path
+        file_path = path.join(self.package_path, feature_map_file_path)
         features = ([], [])
 
         if path.isfile(file_path):
             # load keypoints of pickle file
             with open(file_path, 'rb') as f:
                 features = pickle.load(f)
-            rospy.loginfo('Loaded map file at: %(path)s' % {'path': file_path})
+            rospy.loginfo(f'Loaded map file at: {file_path}')
 
             keypoint_values = features['keypoint_values']
             descriptors = features['descriptors']

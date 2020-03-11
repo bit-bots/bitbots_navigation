@@ -83,7 +83,7 @@ class Compass(VisualCompassInterface):
         if resultCB is not None:
             resultCB(*self.state)
 
-        return self.state[0], self.state[1]
+        return *self.state
 
     def set_config(self, config):
         self.config = config
