@@ -28,6 +28,10 @@ class FieldRecorder():
 
         self.cv_bridge = CvBridge()
 
+        # Image transfer variable
+        self._transfer_basler_image_msg = None
+        self._transfer_basler_image_msg_read_flag = False
+
         self.basler_subscriber = None
         self.basler_image = None
         self.head_motor_goals_publisher = None
@@ -60,8 +64,6 @@ class FieldRecorder():
             self.start_row = int(split_input[0])
             self.start_checkpoint = int(split_input[1])
 
-        self.display_map(self.start_row, self.start_checkpoint)
-
         # Open logitech camera
         if self.config['recorder']['logitech']:
             logitech_source = self.config['recorder']['logitech_source']
@@ -85,26 +87,21 @@ class FieldRecorder():
             # Publisher for JointComand
             self.head_motor_goals_publisher = rospy.Publisher('/head_motor_goals', JointCommand, queue_size=1)
 
-        # Image transfer variable
-        self._transfer_image_msg = None
-        self._transfer_image_msg_read_flag = False
-
         self.record()
 
     def record(self):
-        # Main loop
-        while not rospy.is_shutdown():
-            # Check if a new image is avalabile
-            if self._transfer_image_msg is not None:
-                skipall = False
-                for row in range(self.start_row, self.rows):
-                    if not skipall:
-                        print("------------- NEW ROW -------------")
-                    for checkpoint in range(self.start_checkpoint, self.checkpoints):
-                        if self.logitech_video_getter.ended or skipall:
-                            break
-                        checkpoints_path = os.path.join(self.output_path, "{}/{}/".format(row, checkpoint))
-                        input_str = input("Press enter for next checkpoint!")
+        # Check if a new image is avalabile
+        if self._transfer_basler_image_msg is not None:
+            skipall = False
+            for row in range(self.start_row, self.rows):
+                print("------------- NEW ROW -------------")
+                for checkpoint in range(self.start_checkpoint, self.checkpoints):
+                    if rospy.is_shutdown() or self.logitech_video_getter.ended or skipall:
+                        rospy.loginfo("Shutting down")
+                        return
+                    else:
+                        self.display_map(row, checkpoint)
+                        input_str = input("Press enter for next checkpoint | 's' to skip | 'e' to exit")
                         print("Current Position:\nRow: {}\nCheckpoint:{}".format(row, checkpoint))
                         if input_str == "s":
                             print("Skiped ({}|{})".format(row, checkpoint))
@@ -112,16 +109,13 @@ class FieldRecorder():
                             print("Exit")
                             skipall = True
                         else:
+                            checkpoints_path = os.path.join(self.output_path, "{}/{}/".format(row, checkpoint))
                             self.make_path(checkpoints_path)
                             self.record_pano(row, checkpoint, checkpoints_path)
-                        self.display_map(row, checkpoint)
-                    start_checkpoint = 0
-                self.save_index()
-                self.logitech_video_getter.stop()
-                cv2.destroyAllWindows()
-            else:
-                time.sleep(0.01)
-
+                        self.save_index()
+                start_checkpoint = 0
+            self.logitech_video_getter.stop()
+            cv2.destroyAllWindows()
 
     def basler_callback(self, image_msg):
         image_age = rospy.get_rostime() - image_msg.header.stamp
@@ -129,7 +123,7 @@ class FieldRecorder():
             rospy.logerr("Image message to old")
 
         # Check flag
-        if self._transfer_image_msg_read_flag:
+        if self._transfer_basler_image_msg_read_flag:
             return
 
         # Transfer the image to the main thread
@@ -208,9 +202,9 @@ class FieldRecorder():
             os.makedirs(path)
         except OSError:  
             rospy.logerr(f"Creation of directory '{path}' failed!")
-            os.makedirs(path)
+            sys.exit(1)
         else:  
-            rospy.loginfo(f"Successfully created directory '{path}'.")
+            rospy.logdebug(f"Successfully created directory '{path}'.")
 
     def drive(self, motor, value):
         if self.config['recorder']['motor_control']:
@@ -281,7 +275,9 @@ class FieldRecorder():
             self.show_img(self.basler_image, logitech_image)
 
             # Copy image from shared memory
+            self._transfer_basler_image_msg_read_flag = True
             image_msg = deepcopy(self._transfer_image_msg)
+            self._transfer_basler_image_msg_read_flag = False
             self._transfer_image_msg = None
             # Run the vision pipeline
             self.basler_handle_image(image_msg)
