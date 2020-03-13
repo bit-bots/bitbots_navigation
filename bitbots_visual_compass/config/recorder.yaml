@@ -9,14 +9,14 @@ recorder:
   show_images: False
 
   motor_control: True
-  animation: "walkready"
-  play_animation: True
   joint_resolution: 4095
+  animation: "walkready"
+  play_animation: False
+
+  logitech: True
+  logitech_source: 0
 
   basler: True
   basler_topic: "image_raw"
 
   use_buttons: True
-
-  logitech: True
-  logitech_source: 0

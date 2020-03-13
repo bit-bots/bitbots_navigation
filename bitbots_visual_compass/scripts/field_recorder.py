@@ -33,8 +33,8 @@ class FieldRecorder():
         self._transfer_basler_image_msg = None
         self._transfer_basler_image_msg_read_flag = False
 
+        self.button_subscriber = None
         self.basler_subscriber = None
-        self.basler_image = None
         self.head_motor_goals_publisher = None
         self.logitech_video_getter = None
 
@@ -56,17 +56,19 @@ class FieldRecorder():
         self.file_index = []
 
         # Get start row and checkpoint from user input
-        input_str = input("Select start (row, checkpoint) and/or press enter.")
-        if input_str == "":
+        input_str = input("Select Start Position (ROW, CHECKPOINT) default: (0,0) and press ENTER: ")
+        try:
+            split_input = input_str.split(',')
+            self.start_row = int(split_input[0].strip())
+            self.start_checkpoint = int(split_input[1].strip())
+        except:
             self.start_row = 0
             self.start_checkpoint = 0
-        else:
-            split_input = input_str.split(',')
-            self.start_row = int(split_input[0])
-            self.start_checkpoint = int(split_input[1])
 
-        # Open logitech camera
+        rospy.loginfo(f"Start Positions: Row: {self.start_row} | Checkpoint: {self.start_checkpoint}")
+
         if self.config['recorder']['logitech']:
+            # Open logitech camera
             logitech_source = self.config['recorder']['logitech_source']
             if isinstance(logitech_source, str):
                 root_folder = os.curdir
@@ -75,8 +77,8 @@ class FieldRecorder():
             self.logitech_video_getter = Videocv(logitech_source)
             self.logitech_video_getter.run()
 
-        # Subscribe to basler camera
         if self.config['recorder']['basler']:
+            # Subscribe to basler camera
             self.basler_subscriber = rospy.Subscriber(
                 self.config['recorder']['basler_topic'],
                 Image,
@@ -84,9 +86,12 @@ class FieldRecorder():
                 queue_size=1,
                 buff_size=60000000)
 
-
         if self.config['recorder']['use_buttons']:
-            rospy.Subscriber("/buttons", Buttons, self.button_callback)
+            # Subscribe to button
+            self.button_subscriber = rospy.Subscriber(
+                "/buttons",
+                Buttons,
+                self.button_callback)
             self.button = False
 
         if self.config['recorder']['motor_control']:
@@ -96,39 +101,37 @@ class FieldRecorder():
         self.record()
 
     def record(self):
-        # Check if a new image is avalabile
-        if self._transfer_basler_image_msg is not None:
-            skipall = False
-            for row in range(self.start_row, self.rows):
-                print("------------- NEW ROW -------------")
-                for checkpoint in range(self.start_checkpoint, self.checkpoints):
-                    if rospy.is_shutdown() or self.logitech_video_getter.ended or skipall:
-                        rospy.loginfo("Shutting down")
-                        return
+        skipall = False
+        for row in range(self.start_row, self.rows):
+            rospy.loginfo("------------- NEW ROW -------------")
+            for checkpoint in range(self.start_checkpoint, self.checkpoints):
+                if rospy.is_shutdown() or ((self.logitech_video_getter is not None) and self.logitech_video_getter.ended) or skipall:
+                    rospy.loginfo("Shutting down")
+                    return
+                else:
+                    self.display_map(row, checkpoint)
+                    if self.button_subscriber is not None:
+                        input_str = "not pressed"
+                        while input_str == "not pressed":
+                            if self.button:
+                                input_str = "\n"
+                            time.sleep(0.1)
                     else:
-                        self.display_map(row, checkpoint)
-                        if self.config['recorder']['use_buttons']:
-                            input_str = "not pressed"
-                            while input_str == "not pressed":
-                                if self.button:
-                                    input_str = "\n"
-                                time.sleep(0.1)
-                        else:
-                            input_str = input("Press enter for next checkpoint | 's' to skip | 'e' to exit")
-                        print("Current Position:\nRow: {}\nCheckpoint:{}".format(row, checkpoint))
-                        if input_str == "s":
-                            print("Skiped ({}|{})".format(row, checkpoint))
-                        elif input_str == "e":
-                            print("Exit")
-                            skipall = True
-                        else:
-                            checkpoints_path = os.path.join(self.output_path, "{}/{}/".format(row, checkpoint))
-                            self.make_path(checkpoints_path)
-                            self.record_pano(row, checkpoint, checkpoints_path)
-                        self.save_index()
-                start_checkpoint = 0
+                        input_str = input("Press ENTER for next checkpoint | 's' to skip | 'e' to exit: ")
+                    if input_str.lower() == "s":
+                        rospy.logdebug(f"Skipped Position: Row: {row} | Checkpoint: {checkpoint}")
+                    elif input_str.lower() == "e":
+                        rospy.loginfo("Exit...")
+                        skipall = True
+                    else:
+                        checkpoints_path = os.path.join(self.output_path, "{}/{}/".format(row, checkpoint))
+                        self.make_path(checkpoints_path)
+                        self.record_pano(row, checkpoint, checkpoints_path)
+                    self.save_index()
+            start_checkpoint = 0
+        if self.logitech_video_getter is not None:
             self.logitech_video_getter.stop()
-            cv2.destroyAllWindows()
+        cv2.destroyAllWindows()
 
     def basler_callback(self, image_msg):
         image_age = rospy.get_rostime() - image_msg.header.stamp
@@ -144,14 +147,18 @@ class FieldRecorder():
 
     def button_callback(self, msg):
         """Callback for msg about pressed buttons."""
+        print(msg.button1)
         self.button = msg.button1
 
     def basler_handle_image(self, image_msg):
-        self.basler_image = self.cv_bridge.imgmsg_to_cv2(image_msg, 'bgr8')
+        image = self.cv_bridge.imgmsg_to_cv2(image_msg, 'bgr8')
 
         # Skip if image is None
-        if self.basler_image is None:
+        if image is None:
             rospy.logerr("Basler image content is None")
+            sys.exit(1)
+        else:
+            return image
 
     def publish_head_motor_goals(self, motor, value):
         pos_msg = JointCommand()
@@ -168,10 +175,11 @@ class FieldRecorder():
 
         self.head_motor_goals_publisher.publish(pos_msg)
 
-    def show_img(self, basler_image, logitech_image):
+    def show_img(self, images):
         if self.config['recorder']['show_images']:
-            cv2.imshow("Basler", basler_image)
-            cv2.imshow("Logitech", logitech_image)
+            # Data is a dict: images[camera_name] = image
+            for camera_name, image in images.items():
+                cv2.imshow(camera_name, image)
 
     def make_path(self, path):
         try:
@@ -190,50 +198,52 @@ class FieldRecorder():
         rospy.logdebug(f"Drive Motor {motor} | Value {value}")
 
     def save_index(self):
-        path = os.path.join(self.output_path, "index.yaml")
-        try:
-            with open(path, 'w') as outfile:
-                yaml.dump(self.file_index, outfile, default_flow_style=False)
-        except:
-            rospy.logerr("Save index file error")
-            sys.exit(1)
+        if self.file_index:
+            path = os.path.join(self.output_path, "index.yaml")
+            try:
+                with open(path, 'w') as outfile:
+                    yaml.dump(self.file_index, outfile, default_flow_style=False)
+            except:
+                rospy.logerr("Save index file error")
+                sys.exit(1)
 
-    def save(self, row, checkpoint, value, angle, path, basler_image, logitech_image):
-        basler_image_name = "basler_image_{}.png".format(value)
-        basler_local_path = os.path.join("{}/{}/".format(row, checkpoint), basler_image_name)
-        basler_save_path = os.path.join(path, basler_image_name)
-
-        logitech_image_name = "logitech_image_{}.png".format(value)
-        logitech_local_path = os.path.join("{}/{}/".format(row, checkpoint), logitech_image_name)
-        logitech_save_path = os.path.join(path, logitech_image_name)
-
-        data = {'row': row,
+    def save(self, row, checkpoint, value, angle, path, images):
+        meta = {'row': row,
                 'checkpoint': checkpoint,
-                'angle': angle,
-                'basler_path': basler_local_path,
-                'logitech_path': logitech_local_path,}
-        self.file_index.append(data)
+                'angle': angle,}
+        
+        # Data is a dict: images[camera_name] = image
+        for camera_name, image in images.items():
+            image_name = f"{camera_name}_{value}.png"
+            local_image_path = os.path.join("{}/{}/".format(row, checkpoint), image_name)
+            meta[camera_name] = local_image_path
 
-        cv2.imwrite(basler_save_path, basler_image)
-        cv2.imwrite(logitech_save_path, logitech_image)
+            image_save_path = os.path.join(path, image_name)
+            cv2.imwrite(image_save_path, image)
 
-    def display_map(self, draw_row, draw_checkpoint):
-        offset = max(0,(self.checkpoints - 4 + 1))
-        print(" " * offset + " ------- ")
-        print(" " * offset + "| GOAL1 |")
-        print("-" * (self.checkpoints * 2 + 3))
+        self.file_index.append(meta)
+
+    def display_map(self, current_row, current_checkpoint):
+        offset = max(0,(self.checkpoints - 4))
+
+        current_map = """"""
+        current_map = current_map + " " * offset + "---------\n"
+        current_map = current_map + " " * offset + "| GOAL1 |\n"
+        current_map = current_map + "-" * (self.checkpoints * 2 + 3) + "\n"
         for row in range(self.rows):
             str_row = "|"
             for checkpoint in range(self.checkpoints):
-                if row == draw_row and checkpoint == draw_checkpoint:
+                if row == current_row and checkpoint == current_checkpoint:
                     symbol = "|X"
                 else:
                     symbol = "|-"
                 str_row = str_row + symbol
-            print(str_row + "||")
-        print("-" * (self.checkpoints * 2 + 3))
-        print(" " * offset + "| GOAL2 |")
-        print(" " * offset + " ------- ")
+            current_map = current_map + str_row + "||\n"
+        current_map = current_map + "-" * (self.checkpoints * 2 + 3) + "\n"
+        current_map = current_map + " " * offset + "| GOAL2 |\n"
+        current_map = current_map + " " * offset + "---------\n"
+
+        rospy.loginfo(f"Current Positions: Row: {row} | Checkpoint: {checkpoint}\n{current_map}")
 
     def record_pano(self, row, checkpoint, path):
         steps = self.yaw_steps
@@ -247,19 +257,23 @@ class FieldRecorder():
                 time.sleep(self.config['recorder']['reset_time'])
             time.sleep(self.config['recorder']['step_time'])
 
-            logitech_image = self.logitech_video_getter.frame
-            self.show_img(self.basler_image, logitech_image)
+            images = {}
 
-            # Copy image from shared memory
-            self._transfer_basler_image_msg_read_flag = True
-            image_msg = deepcopy(self._transfer_image_msg)
-            self._transfer_basler_image_msg_read_flag = False
-            self._transfer_image_msg = None
-            # Run the vision pipeline
-            self.basler_handle_image(image_msg)
+            if self.logitech_video_getter is not None:
+                logitech_image = self.logitech_video_getter.frame
+                images['logitech'] = logitech_image
 
+            if self.basler_subscriber is not None:
+                # Copy image from shared memory
+                self._transfer_basler_image_msg_read_flag = True
+                image_msg = deepcopy(self._transfer_image_msg)
+                self._transfer_basler_image_msg_read_flag = False
+                self._transfer_image_msg = None
+                images['basler'] = self.basler_handle_image(image_msg)
+
+            self.save(row, checkpoint, value, angle, path, images)
+            self.show_img(images)
             k = cv2.waitKey(1)  # TODO: Why is this here?
-            self.save(row, checkpoint, value, angle, path, self.basler_image, logitech_image)
 
 
 if __name__ == "__main__":
