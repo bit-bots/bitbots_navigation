@@ -23,7 +23,3 @@ if __name__ == "__main__":
         pose.header.stamp = rospy.Time.now()
         pose_publisher.publish(pose)
         rate.sleep()
-
-
-
-
