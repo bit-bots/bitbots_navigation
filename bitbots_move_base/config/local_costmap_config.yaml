@@ -8,7 +8,7 @@ local_costmap:
   robot_base_frame: base_footprint
   global_frame: odom
 
-  update_frequency: 5.0
+  update_frequency: 4.0
   publish_frequency: 1.0
   transform_tolerance: 1.0
   rolling_window: true
