@@ -2,22 +2,22 @@ DWAPlannerROS:
   global_frame_id: odom
 
   # velocities
-  max_vel_trans: 0.1               # The absolute value of the maximum translational velocity for the robot in m/s
-  min_vel_trans: 0.00               # The absolute value of the minimum translational velocity for the robot in m/s
+  max_vel_trans: 0.442459975351979   # The absolute value of the maximum translational velocity for the robot in m/s
+  min_vel_trans: 0.00                # The absolute value of the minimum translational velocity for the robot in m/s
 
-  max_vel_x: 0.1                   # The maximum x velocity for the robot in m/s
-  min_vel_x: -0.05                   # The minimum x velocity for the robot in m/s
+  max_vel_x: 0.309441013068279       # The maximum x velocity for the robot in m/s
+  min_vel_x: -0.122053003004436      # The minimum x velocity for the robot in m/s
 
-  max_vel_y: 0.08                   # The maximum y velocity for the robot in m/s"
-  min_vel_y: -0.08                   # The minimum y velocity for the robot in m/s"
+  max_vel_y: 0.140521014765194       # The maximum y velocity for the robot in m/s"
+  min_vel_y: -0.140521014765194      # The minimum y velocity for the robot in m/s"
 
-  max_vel_theta: 0.7                 # The absolute value of the maximum rotational velocity for the robot in rad/s
+  max_vel_theta: 3.86174738262358    # The absolute value of the maximum rotational velocity for the robot in rad/s
   min_vel_theta: 0.0                 # The absolute value of the minimum rotational velocity for the robot in rad/s
   # acceleration
-  acc_lim_x: 1.0                   # The acceleration limit of the robot in the x direction
-  acc_lim_y: 1.0                   # The acceleration limit of the robot in the y direction
-  acc_lim_theta: 4.0                # The acceleration limit of the robot in the theta direction
-  acc_trans_limit: 1.0             # The absolute value of the maximum translational acceleration for the robot in m/s^2
+  acc_lim_x: 4.85731401251918        # The acceleration limit of the robot in the x direction
+  acc_lim_y: 4.51444242375485        # The acceleration limit of the robot in the y direction
+  acc_lim_theta: 18.809273763772     # The acceleration limit of the robot in the theta direction
+  acc_lim_trans: 3.26476809709274    # The absolute value of the maximum translational acceleration for the robot in m/s^2
 
 
   prune_plan: true                 # Start following closest point of global plan, not first point (if different).
@@ -34,10 +34,10 @@ DWAPlannerROS:
   sim_granularity: 0.025            # The granularity with which to check for collisions along each trajectory in meters
   angular_sim_granularity: 0.1      # The granularity with which to check for collisions for rotations in radians
 
-  path_distance_bias: 5          # The weight for the path distance part of the cost function
-  goal_distance_bias: 10.0          # The weight for the goal distance part of the cost function
-  occdist_scale: 0.1               # The weight for the obstacle distance part of the cost function
-  twirling_scale: 5.0               # The weight for penalizing any changes in robot heading
+  path_distance_bias: 0.730600257982639          # The weight for the path distance part of the cost function
+  goal_distance_bias: 9.9965613390698            # The weight for the goal distance part of the cost function
+  occdist_scale: 0.197073177716396               # The weight for the obstacle distance part of the cost function
+  twirling_scale: 9.38428073264501               # The weight for penalizing any changes in robot heading
 
   stop_time_buffer: 0.2             # The amount of time that the robot must stop before a collision in order for a trajectory to be considered valid in seconds
   oscillation_reset_dist: 0.05      # The distance the robot must travel before oscillation flags are reset, in meters
