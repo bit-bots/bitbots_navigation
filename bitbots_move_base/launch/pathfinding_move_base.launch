@@ -7,7 +7,7 @@
   <arg name="laser_topic" default="scan" />
   <arg name="use_game_settings" default="false"/>
 
-  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="log">
     <rosparam file="$(find bitbots_move_base)/config/costmap_common_config.yaml" command="load" ns="global_costmap" />
     <rosparam file="$(find bitbots_move_base)/config/costmap_common_config.yaml" command="load" ns="local_costmap" />
     <rosparam file="$(find bitbots_move_base)/config/local_costmap_config.yaml" command="load" />
