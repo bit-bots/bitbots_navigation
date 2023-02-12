@@ -22,6 +22,10 @@ class PathPlanning(Node):
     def __init__(self) -> None:
         super().__init__('bitbots_path_planning')
 
+        # declare maximum speed, TODO: use ros params and find the right speed
+        self.max_speed = 0.5
+        self.max_angular_speed = 0.5
+
         # Declare params
         self.declare_parameter('base_footprint_frame', 'base_footprint')
         self.declare_parameter('rate', 20.0)
@@ -83,6 +87,13 @@ class PathPlanning(Node):
             self.path_pub.publish(path)
 
             cmd_vel = self.controller.step(path)
+            # if cmd_vel is below threshold, then publish, otherwise publish a maximum speed
+            if not cmd_vel.linear.x + cmd_vel.linear.y < self.max_speed and cmd_vel.angular.z < self.max_angular_speed:
+                x_rel = cmd_vel.linear.x / (cmd_vel.linear.x + cmd_vel.linear.y)
+                y_rel = 1 - x_rel
+                cmd_vel.linear.x = self.max_speed * x_rel
+                cmd_vel.linear.y = self.max_speed * y_rel
+                cmd_vel.angular.z = self.max_angular_speed
             self.cmd_vel_pub.publish(cmd_vel)
 
 
