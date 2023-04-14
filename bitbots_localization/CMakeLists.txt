@@ -11,6 +11,7 @@ find_package(builtin_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(backward_ros REQUIRED)
 find_package(particle_filter REQUIRED)
+find_package(generate_parameter_library REQUIRED)
 find_package(soccer_vision_3d_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(Boost COMPONENTS filesystem REQUIRED)
@@ -26,6 +27,11 @@ find_package(image_transport REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME} "srv/ResetFilter.srv"
   "srv/SetPaused.srv"
   DEPENDENCIES builtin_interfaces)
+
+generate_parameter_library(
+  localization_parameters # cmake target name for the parameter library
+  config/localization_parameters.yaml # path to input yaml file
+)
 
 include_directories(${INCLUDE_DIRS})
 
@@ -94,7 +100,7 @@ ament_target_dependencies(localization
 rosidl_get_typesupport_target(cpp_typesupport_target
         ${PROJECT_NAME} "rosidl_typesupport_cpp")
 
-target_link_libraries(localization "${cpp_typesupport_target}")
+target_link_libraries(localization "${cpp_typesupport_target}" localization_parameters)
 
 install(DIRECTORY config  DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})

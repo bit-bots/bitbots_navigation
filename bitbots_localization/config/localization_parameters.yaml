@@ -1,0 +1,489 @@
+bitbots_localization:
+  ros__parameters:
+
+    ########
+    # MISC #
+    ########
+
+    init_mode: {
+      type: int,
+      default_value: 0,
+      description: "init mode. 0: start, 1: left, 2: right, 3: position",
+      validation: {
+        bounds<>: [-5,5]
+      }
+    }  
+
+    #############
+    # ROS-Stuff #
+    #############
+
+    line_topic: {
+      type: string,
+      default_value: 'line_relative',
+      description: "the line data subscribe topic"
+    }
+    line_pointcloud_topic: {
+      type: string,
+      default_value: 'line_mask_relative_pc',
+      description: "the line point cloud subscribe topic"
+    } 
+    goal_topic: {
+      type: string,
+      default_value: 'goals_simulated',
+      description: "the goal data subscribe topic"
+    }
+    fieldboundary_topic: {
+      type: string,
+      default_value: 'field_boundary_relative',
+      description: "the fieldboundary data subscribe topic"
+    }
+    fieldboundary_in_image_topic: {
+      type: string,
+      default_value: 'field_boundary_in_image',
+      description: "the fieldboundary in image data subscribe topic"
+    }
+
+    particle_publishing_topic: {
+      type: string,
+      default_value: 'pose_particles',
+      description: "frame in which local objects and markers are published"
+    } 
+
+    publishing_frequency: {
+      type: int,
+      default_value: 10,
+      description: "the publishing frequency in Hz",
+      validation: {
+        bounds<>: [1,100]
+      }
+    } 
+
+    #################
+    # Visualization #
+    #################
+
+    debug_visualization: {
+      type: bool,
+      default_value: true,
+      description: "publish debug visualization messages"
+    }  
+
+
+    ###################
+    # Particle Filter #
+    ###################
+
+
+    particle_number: {
+      type: int,
+      default_value: 300,
+      description: "The amount of particles",
+      validation: {
+        bounds<>: [1,10000]
+      }
+    }
+    resampling_interval: {
+      type: int,
+      default_value: 2,
+      description: "Number of filterupdates performed before resampling",
+      validation: {
+        bounds<>: [0,10000]
+      }
+    }
+
+    diffusion_x_std_dev: {
+      type: double,
+      default_value: 0.8,
+      description: "The standard deviation of the diffusion on the x axis",
+      validation: {
+        bounds<>: [0.1,5]
+      }
+    }
+    diffusion_y_std_dev: {
+      type: double,
+      default_value: 0.8,
+      description: "The standard deviation of the diffusion on the y axis",
+      validation: {
+        bounds<>: [0.1,5]
+      }
+    }
+    diffusion_t_std_dev: {
+      type: double,
+      default_value: 0.9,
+      description: "The standard deviation of the diffusion on the rotation theta",
+      validation: {
+        bounds<>: [0.01,5]
+      }
+    }
+    diffusion_multiplicator: {
+      type: double,
+      default_value: 0.001,
+      description: "The multiplicator of the diffusion",
+      validation: {
+        bounds<>: [0.0001,10]
+      }
+    }
+    starting_diffusion: {
+      type: double,
+      default_value: 0.05,
+      description: "The multiplicator of the diffusion when the localization is started or reseted. A higher diffusion makes the convergenece more robust.",
+      validation: {
+        bounds<>: [0.0001,10]
+      }
+    }
+    starting_steps_with_higher_diffusion: {
+      type: int,
+      default_value: 40,
+      description: "The amount of steps after which the diffusion is lowered. This is done to reduce the noise in the tracking.",
+      validation: {
+        bounds<>: [0,500]
+      }
+    }
+
+    drift_distance_to_direction: {
+      type: double,
+      default_value: 2.0,
+      description: "Drift applied to the walking direction based on the walked distance.",
+      validation: {
+        bounds<>: [0.0,5]
+      }
+    } 
+
+    drift_rotation_to_direction: {
+      type: double,
+      default_value: 0.0,
+      description: "Drift applied to the walking direction based on the robots rotation delta.",
+      validation: {
+        bounds<>: [0.0,100]
+      }
+    }
+    drift_distance_to_distance: {
+      type: double,
+      default_value: 0.1,
+      description: "Drift applied to the walking distance based on the walked distance.",
+      validation: {
+        bounds<>: [0.0,5]
+      }
+    }
+    drift_rotation_to_distance: {
+      type: double,
+      default_value: 0.2,
+      description: "Drift applied to the walking distance based on the robots rotation delta.",
+      validation: {
+        bounds<>: [0.0,100]
+      }
+    }
+    drift_distance_to_rotation: {
+      type: double,
+      default_value: 0.0,
+      description: "Drift applied to the robots orientation based on the walked distance.",
+      validation: {
+        bounds<>: [0.0,5]
+      }
+    }
+    drift_rotation_to_rotation: {
+      type: double,
+      default_value: 3.0,
+      description: "Drift applied to the robots orientation based on the robots rotation delta.",
+      validation: {
+        bounds<>: [0.0,100]
+      }
+    }
+
+    max_rotation: {
+      type: double,
+      default_value: 0.45,
+      description: "The robots maximum rotation velocity.",
+      validation: {
+        bounds<>: [0.0,100]
+      }
+    }
+    max_translation: {
+      type: double,
+      default_value: 0.09,
+      description: "The robots maximum rotation translational.",
+      validation: {
+        bounds<>: [0.0,100]
+      }
+    }
+
+    min_weight: {
+      type: double,
+      default_value: 0.01,
+      description: "The minimal weight of a particle",
+      validation: {
+        bounds<>: [0.0,1]
+      }
+    }
+    min_resampling_weight: {
+      type: double,
+      default_value: 0.1,
+      description: "The minimal weight of the best particle to resample",
+      validation: {
+        bounds<>: [0.0,1]
+      }
+    }
+    out_of_field_weight_decrease: {
+      type: double,
+      default_value: 0.01,
+      description: "The amount the particle-weight is decreased by when the particle moves to far outside the field",
+      validation: {
+        bounds<>: [0.0,1]
+      }
+    }
+    out_of_field_range: {
+      type: double,
+      default_value: 0.5,
+      description: "The distance a particle is allowed to be outside of the field in m",
+      validation: {
+        bounds<>: [0,10]
+      }
+    }
+    percentage_best_particles: {
+      type: int,
+      default_value: 50,
+      description: "Percentage of best particles to generate pose from",
+      validation: {
+        bounds<>: [0,100]
+      }
+    }
+
+    distance_factor: {
+      type: double,
+      default_value: 0.5,
+      description: "how much distant measurements get their weights reduced",
+      validation: {
+        bounds<>: [0.0,1]
+      }
+    }
+    lines_factor: {
+      type: double,
+      default_value: 1.0,
+      description: "how much line measurements are contribute to the particle weight",
+      validation: {
+        bounds<>: [0.0,1]
+      }
+    }
+    goals_factor: {
+      type: double,
+      default_value: 0.0,
+      description: "how much goal measurements are contribute to the particle weight",
+      validation: {
+        bounds<>: [0.0,1]
+      }
+    }
+    field_boundary_factor: {
+      type: double,
+      default_value: 0.0,
+      description: "how much field boundary measurements contribute to the particle weight",
+      validation: {
+        bounds<>: [0.0,1]
+      }
+    }
+    corners_factor : {
+      type: double,
+      default_value: 0.0,
+      description: "how much corners measurements contribute to the particle weight",
+      validation: {
+        bounds<>: [0.0,1]
+      }
+    }
+    t_crossings_factor: {
+      type: double,
+      default_value: 0.0,
+      description: "how much t-crossing measurements contribute to the particle weight",
+      validation: {
+        bounds<>: [0.0,1]
+      }
+    }
+    crosses_factor : {
+      type: double,
+      default_value: 0.0,
+      description: "how much crosses measurements contribute to the particle weight",
+      validation: {
+        bounds<>: [0.0,1]
+      }
+    }
+
+    line_element_confidence: {
+      type: double,
+      default_value: 0.01,
+      description: "how much do we trust each of the measurements of this class (in this case every line pixel)",
+      validation: {
+        bounds<>: [0.0,1]
+      }
+    }
+    goal_element_confidence: {
+      type: double,
+      default_value: 0.0,
+      description: "how much do we trust each of the measurements of this class (in this case every detected goal)",
+      validation: {
+        bounds<>: [0.0,1]
+      }
+    }
+    field_boundary_element_confidence: {
+      type: double,
+      default_value: 0.0,
+      description: "how much do we trust each of the measurements of this class",
+      validation: {
+        bounds<>: [0.0,1]
+      }
+    }
+    corner_element_confidence: {
+      type: double,
+      default_value: 0.0,
+      description: "how much do we trust each of the measurements of this class",
+      validation: {
+        bounds<>: [0.0,1]
+      }
+    }
+    t_crossing_element_confidence: {
+      type: double,
+      default_value: 0.0,
+      description: "how much do we trust each of the measurements of this class",
+      validation: {
+        bounds<>: [0.0,1]
+      }
+    }
+    cross_element_confidence: {
+      type: double,
+      default_value: 0.0,
+      description: "how much do we trust each of the measurements of this class",
+      validation: {
+        bounds<>: [0.0,1]
+      }
+    }
+
+    min_motion_linear: {
+      type: double, 
+      default_value: 0.0,
+      description: "minimum amount of linear motion in cm to be classified as motion ",
+      validation: {
+        bounds<>: [0.0,10]
+      }
+    }
+    min_motion_angular: {
+      type: double,
+      default_value: 0.0,
+      description: "minimum amount of angular motion in rad to be classified as motion ",
+      validation: {
+        bounds<>: [0.0,1]
+      }
+    }
+    filter_only_with_motion: {
+      type: bool,
+      default_value: false,
+      description: "if true, motion model  if new linepoints are available"
+    }
+
+    measurement_out_of_map_punishment: {
+      type: double,
+      default_value: 10.0,
+      description: "Defines a value wich is subtracted if the measurement is not on the map",
+      validation: {
+        bounds<>: [0.0,100]
+      }
+    }
+
+    #############################
+    # Initial pose of the robot #
+    #############################
+
+
+    initial_robot_x1: {
+      type: double,
+      default_value: 0,
+      description: "The initial x position of the robot in meters (measured from the center)",
+      validation: {
+        bounds<>: [-15,15]
+      }
+    }
+    initial_robot_y1: {
+      type: double,
+      default_value: 0,
+      description: "The initial y position of the robot in meters (measured from the center)",
+      validation: {
+        bounds<>: [-5,5]
+      }
+    }
+    initial_robot_t1: {
+      type: double,
+      default_value: 0,
+      description: "The initial orientation of the robot in radiant",
+      validation: {
+        bounds<>: [-5,5]
+      }
+    }
+    initial_robot_x2: {
+      type: double,
+      default_value: 0,
+      description: "The initial x position of the robot in meters (measured from the center)",
+      validation: {
+        bounds<>: [-15,15]
+      }
+    }
+    initial_robot_y2: {
+      type: double,
+      default_value: 0,
+      description: "The initial y position of the robot in meters (measured from the center)",
+      validation: {
+        bounds<>: [-5,5]
+      }
+    }
+    initial_robot_t2: {
+      type: double,
+      default_value: 0,
+      description: "The initial orientation of the robot in radiant",
+      validation: {
+        bounds<>: [-5,5]
+      }
+    }
+    initial_robot_x: {
+      type: double,
+      default_value: 0,
+      description: "The initial x position of the robot in meters (measured from the center)",
+      validation: {
+        bounds<>: [-15,15]
+      }
+    }
+    initial_robot_y: {
+      type: double,
+      default_value: 0,
+      description: "The initial y position of the robot in meters (measured from the center)",
+      validation: {
+        bounds<>: [-5,5]
+      }
+    }
+    initial_robot_t: {
+      type: double,
+      default_value: 0,
+      description: "The initial orientation of the robot in radiant",
+      validation: {
+        bounds<>: [-5,5]
+      }
+    }
+
+    ##################
+    # Field settings #
+    ##################
+
+    field_x: {
+      type: double,
+      default_value: 0,
+      description: "lenght of the field in m"
+    }
+    field_y: {
+      type: double,
+      default_value: 0,
+      description: "width of the field in m"
+    }
+    field_padding: {
+      type: double,
+      default_value: 0,
+      description: "space added around field boundary map"
+    }
+     
+
+
+    
