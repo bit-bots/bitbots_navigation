@@ -17,7 +17,22 @@ RobotPoseObservationModel::RobotPoseObservationModel(std::shared_ptr<Map> map_li
   map_field_boundary_ = map_field_boundary;
   config_ = config;
   particle_filter::ObservationModel<RobotState>::accumulate_weights_ = true;
+}
 
+double RobotPoseObservationModel::calculate_particle_line_mask_weight(
+    const RobotState &state,
+    const cv::Mat &last_measurement,
+    std::shared_ptr<Map> map,
+    double element_weight) const {
+  cv::Point2f points[4];
+  points[0] = cv::Point2f(0, 0);
+  points[1] = cv::Point2f(1100, 0);
+  points[2] = cv::Point2f(1100, 800);
+  points[3] = cv::Point2f(0, 800);
+  
+  cv::Point2f transformed_points[4];
+  cv::getPerspectiveTransform(points, transformed_points);
+  return 0;
 }
 
 double RobotPoseObservationModel::calculate_weight_for_class(
@@ -43,6 +58,11 @@ double RobotPoseObservationModel::measure(const RobotState &state) const {
     last_measurement_lines_,
      map_lines_,
      config_->line_element_confidence);
+  double particle_weight_line_mask = calculate_particle_line_mask_weight(
+    state,
+    last_measurement_line_mask_,
+    map_lines_,
+    config_->line_mask_element_confidence);
   double particle_weight_goal = calculate_weight_for_class(
     state,
     last_measurement_goal_,
@@ -56,6 +76,7 @@ double RobotPoseObservationModel::measure(const RobotState &state) const {
 
   double weight = (
       ((1 - config_->lines_factor) + config_->lines_factor * particle_weight_lines) *
+      ((1 - config_->line_mask_factor) + config_->line_mask_factor * particle_weight_line_mask) *
       ((1 - config_->goals_factor) + config_->goals_factor * particle_weight_goal) *
       ((1 - config_->field_boundary_factor) + config_->field_boundary_factor * particle_weight_field_boundary)
   );
@@ -83,6 +104,10 @@ void RobotPoseObservationModel::set_measurement_lines_pc(sm::msg::PointCloud2 me
     std::pair<double, double> linePolar = cartesianToPolar(iter_xyz[0], iter_xyz[1]);
     last_measurement_lines_.push_back(linePolar);
   }
+}
+
+void RobotPoseObservationModel::set_measurement_line_mask(sm::msg::Image measurement) {
+  last_measurement_line_mask_ = cv_bridge::toCvCopy(measurement, "mono8")->image;
 }
 
 void RobotPoseObservationModel::set_measurement_goalposts(sv3dm::msg::GoalpostArray measurement) {
@@ -119,6 +144,10 @@ void RobotPoseObservationModel::set_min_weight(double min_weight) {
 
 double RobotPoseObservationModel::get_min_weight() const {
   return min_weight_;
+}
+
+void RobotPoseObservationModel::set_cof_transform(geometry_msgs::msg::Transform transform) {
+  cof_transform_ = transform;
 }
 
 void RobotPoseObservationModel::clear_measurement() {

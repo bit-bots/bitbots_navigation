@@ -16,7 +16,11 @@
 #include <soccer_vision_3d_msgs/msg/goalpost.hpp>
 #include <soccer_vision_3d_msgs/msg/marking_intersection.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
+#include <cv_bridge/cv_bridge.hpp>
+#include <opencv2/core/mat.hpp>
+#include <geometry_msgs/msg/transform.hpp>
 
 
 namespace sm = sensor_msgs;
@@ -43,6 +47,10 @@ class RobotPoseObservationModel : public particle_filter::ObservationModel<Robot
   double measure(const RobotState &state) const override;
 
   void set_measurement_lines_pc(sm::msg::PointCloud2 measurement);
+
+  void set_measurement_line_mask(sm::msg::Image measurement);
+
+  void set_cof_transform(geometry_msgs::msg::Transform transform);
 
   void set_measurement_goalposts(sv3dm::msg::GoalpostArray measurement);
 
@@ -72,7 +80,15 @@ class RobotPoseObservationModel : public particle_filter::ObservationModel<Robot
     std::shared_ptr<Map> map,
     double element_weight) const;
 
+  double calculate_particle_line_mask_weight(
+    const RobotState &state,
+    const cv::Mat &last_measurement,
+    std::shared_ptr<Map> map,
+    double element_weight) const;
+
   std::vector<std::pair<double, double>> last_measurement_lines_;
+
+  cv::Mat last_measurement_line_mask_;
 
   std::vector<std::pair<double, double>> last_measurement_goal_;
 
@@ -83,6 +99,7 @@ class RobotPoseObservationModel : public particle_filter::ObservationModel<Robot
   std::shared_ptr<Map> map_lines_;
   std::shared_ptr<Map> map_goals_;
   std::shared_ptr<Map> map_field_boundary_;
+  geometry_msgs::msg::Transform cof_transform_;
 
   std::shared_ptr<bl::Config> config_;
 

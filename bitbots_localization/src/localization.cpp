@@ -45,6 +45,8 @@ rcl_interfaces::msg::SetParametersResult Localization::onSetParameters(const std
 
   line_point_cloud_subscriber_ = this->create_subscription<sm::msg::PointCloud2>(
     config_->line_pointcloud_topic, 1, std::bind(&Localization::LinePointcloudCallback, this, _1));
+  line_mask_subscriber_ = this->create_subscription<sm::msg::Image>(
+      config_->line_mask_topic, 1, std::bind(&Localization::LineMaskCallback, this, _1));
   goal_subscriber_ = this->create_subscription<sv3dm::msg::GoalpostArray>(
     config_->goal_topic, 1, std::bind(&Localization::GoalPostsCallback, this, _1));
   fieldboundary_subscriber_ = this->create_subscription<sv3dm::msg::FieldBoundary>(
@@ -214,6 +216,10 @@ void Localization::LinePointcloudCallback(const sm::msg::PointCloud2 &msg) {
   line_pointcloud_relative_ = msg;
 }
 
+void Localization::LineMaskCallback(const sm::msg::Image &msg) {
+  line_mask_ = msg;
+}
+
 void Localization::GoalPostsCallback(const sv3dm::msg::GoalpostArray &msg) {
   goal_posts_relative_ = msg;
 }
@@ -301,6 +307,16 @@ void Localization::updateMeasurements() {
   // Sets the measurements in the observation model
   if (line_pointcloud_relative_.header.stamp != last_stamp_lines_pc && config_->lines_factor) {
     robot_pose_observation_model_->set_measurement_lines_pc(line_pointcloud_relative_);
+  }
+  if (line_mask_.header.stamp != last_stamp_lines_pc && config_->lines_factor) {
+    geometry_msgs::msg::TransformStamped transform;
+    try {
+      transform = tf_buffer_->lookupTransform("base_footprint", "camera_optical_frame", rclcpp::Time());
+      robot_pose_observation_model_->set_cof_transform(transform.transform);
+      robot_pose_observation_model_->set_measurement_line_mask(line_mask_);
+    } catch (tf2::TransformException &ex) {
+      RCLCPP_ERROR(this->get_logger(), "%s", ex.what());
+    }
   }
   if (config_->goals_factor && goal_posts_relative_.header.stamp != last_stamp_goals) {
     robot_pose_observation_model_->set_measurement_goalposts(goal_posts_relative_);

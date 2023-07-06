@@ -31,6 +31,9 @@ namespace bitbots_localization
         case hash("line_pointcloud_topic"):
           this->line_pointcloud_topic = param.as_string();
           break;
+        case hash("line_mask_topic"):
+          this->line_mask_topic = param.as_string();
+          break;
         case hash("goal_topic"):
           this->goal_topic = param.as_string();
           break;
@@ -112,6 +115,9 @@ namespace bitbots_localization
         case hash("lines_factor"):
           this->lines_factor = param.as_double();
           break;
+        case hash("line_mask_factor"):
+          this->line_mask_factor = param.as_double();
+          break;
         case hash("goals_factor"):
           this->goals_factor = param.as_double();
           break;
@@ -120,6 +126,9 @@ namespace bitbots_localization
           break;
         case hash("line_element_confidence"):
           this->line_element_confidence = param.as_double();
+          break;
+        case hash("line_mask_element_confidence"):
+          this->line_mask_element_confidence = param.as_double();
           break;
         case hash("goal_element_confidence"):
           this->goal_element_confidence = param.as_double();

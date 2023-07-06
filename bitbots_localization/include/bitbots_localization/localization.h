@@ -111,6 +111,12 @@ class Localization : public rclcpp::Node {
   void LinePointcloudCallback(const sm::msg::PointCloud2 &msg);
 
   /**
+   * Callback for the line mask
+   * @param msg Message containing the line mask.
+   */
+  void LineMaskCallback(const sm::msg::Image &msg);
+
+  /**
    * Callback for goal posts messurements
    * @param msg Message containing the goal posts.
    */
@@ -147,6 +153,7 @@ class Localization : public rclcpp::Node {
 
  private:
   rclcpp::Subscription<sm::msg::PointCloud2>::SharedPtr line_point_cloud_subscriber_;
+  rclcpp::Subscription<sm::msg::Image>::SharedPtr line_mask_subscriber_;
   rclcpp::Subscription<sv3dm::msg::GoalpostArray>::SharedPtr goal_subscriber_;
   rclcpp::Subscription<sv3dm::msg::FieldBoundary>::SharedPtr fieldboundary_subscriber_;
 
@@ -183,6 +190,7 @@ class Localization : public rclcpp::Node {
   bool resampled_ = false;
 
   sm::msg::PointCloud2 line_pointcloud_relative_;
+  sm::msg::Image line_mask_;
   sv3dm::msg::GoalpostArray goal_posts_relative_;
   sv3dm::msg::FieldBoundary fieldboundary_relative_;
   sm::msg::CameraInfo cam_info_;

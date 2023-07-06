@@ -28,6 +28,7 @@ class Config {
 
     int init_mode = 0;
     std::string line_pointcloud_topic = "";
+    std::string line_mask_topic = "";
     std::string goal_topic = "";
     std::string fieldboundary_topic = "";
     std::string particle_publishing_topic = "";
@@ -56,9 +57,11 @@ class Config {
     int percentage_best_particles = 0;
     double distance_factor  = 0.0;
     double lines_factor = 0.0;
+    double line_mask_factor = 0.0;
     double goals_factor = 0.0;
     double field_boundary_factor = 0.0;
     double line_element_confidence = 0.0;
+    double line_mask_element_confidence = 0.0;
     double goal_element_confidence = 0.0;
     double field_boundary_element_confidence = 0.0;
     double min_motion_linear = 0.0;
