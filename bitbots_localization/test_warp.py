@@ -20,7 +20,8 @@ class Warper(Node):
             self.camera_info_callback,
             10)
         self.camera_info_sub  # prevent unused variable warning
-        self.p = None
+        p = np.array([698.6145056581588, 0.0, 400.0, 0.0, 0.0, 698.6145056581588, 300.0, 0.0, 0.0, 0.0, 1.0, 0.0])
+        self.p = p.reshape(3,4)
         self.map = cv2.imread('map.png')
         self.map_height, self.map_width, _ = self.map.shape
         self.map_corners = np.float32([[0,0],[self.map_width,0],[self.map_width,self.map_height],[0,self.map_height]])
